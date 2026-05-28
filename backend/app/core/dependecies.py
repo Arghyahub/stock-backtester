@@ -1,4 +1,4 @@
-from app.config.security import decode_access_token
+from app.core.security import decode_access_token
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import Request

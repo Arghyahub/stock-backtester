@@ -1,5 +1,5 @@
 from jose import JWTError
-from app.config.config import env
+from app.core.config import env
 from datetime import timedelta
 from datetime import timezone
 from datetime import datetime

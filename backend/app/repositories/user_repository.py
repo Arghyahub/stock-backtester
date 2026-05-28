@@ -1,6 +1,6 @@
 from app.db.enums import UserType
-from app.config.security import verify_password
-from app.config.security import hash_password
+from app.core.security import verify_password
+from app.core.security import hash_password
 from sqlalchemy.orm import Session
 
 from app.db.models.user import User

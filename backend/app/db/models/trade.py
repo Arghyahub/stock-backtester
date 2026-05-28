@@ -18,6 +18,11 @@ class Trade(Base):
         primary_key=True
     )
 
+    strategy_id: Mapped[int] = mapped_column(
+        ForeignKey("strategies.pk_strategy_id"),
+        nullable=False
+    )
+
     equity_id: Mapped[int] = mapped_column(
         ForeignKey("equities.pk_equity_id"),
         nullable=False

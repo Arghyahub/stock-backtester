@@ -1,4 +1,7 @@
-from app.config.security import create_access_token
+from app.core.dependecies import get_current_user
+from app.db.models import User
+from email.header import Header
+from app.core.security import create_access_token
 from app.schemas.user_schema import LoginRequest
 from app.schemas.user_schema import LoginResponse
 from app.repositories.user_repository import UserRepository
@@ -82,3 +85,8 @@ def login(
     }
 
 # current_user: User = Depends(get_current_user)
+
+def verify_token(
+    user: User = Depends(get_current_user)
+):
+    return {"status": "ok"}, status.HTTP_200_OK

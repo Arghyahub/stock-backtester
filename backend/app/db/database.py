@@ -1,4 +1,4 @@
-from app.config.config import env
+from app.core.config import env
 from sqlalchemy import create_engine # connects to db
 from sqlalchemy.orm import declarative_base # creates base orm class for models
 from sqlalchemy.orm import sessionmaker # creates session
