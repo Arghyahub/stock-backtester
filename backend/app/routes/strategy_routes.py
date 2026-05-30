@@ -1,5 +1,6 @@
 
 
+from app.schemas.strategy_schema import CreateStrategyResponse
 from app.schemas.strategy_schema import GetStrategy
 from app.schemas.strategy_schema import GetStrategies
 from fastapi import status
@@ -9,7 +10,6 @@ from fastapi import Response
 from app.db.database import get_db
 from fastapi import Depends
 from app.schemas.strategy_schema import CreateStrategyRequest
-from app.schemas.strategy_schema import StrategyResponse
 from fastapi import APIRouter
 
 strategy_router = APIRouter(
@@ -25,7 +25,7 @@ def get_strategies(db: Session = Depends(get_db)):
 
 @strategy_router.post(
     "/",
-    response_model=StrategyResponse
+    response_model=CreateStrategyResponse
 )
 def create_strategy(
     data: CreateStrategyRequest,
@@ -34,4 +34,4 @@ def create_strategy(
 ):
     strategy_id = StrategyRepository.create_strategy(db, data)
     response.status_code = status.HTTP_201_CREATED
-    return strategy_id
+    return {"strategy_id": strategy_id}

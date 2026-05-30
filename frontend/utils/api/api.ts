@@ -22,7 +22,7 @@ class Api {
     } catch (e) {
       res = {};
     }
-    return { status: response.status, ...res };
+    return { status: response.status, ok: response.ok, ...res };
   }
 
   static async get(url: string) {

@@ -4,9 +4,11 @@ from app.db.database import engine
 from app.db.database import Base
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from rich.traceback import install
 
 from app.db.models import *
 
+install(show_locals=True)
 # Base.metadata.create_all(bind=engine)
 
 app = FastAPI()

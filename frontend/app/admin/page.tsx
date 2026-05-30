@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button'
 import Config from '@/utils/config/config'
 import Api from '@/utils/api/api'
 import adminStore from "@/store/admin-store";
-import STRATEGIES from "@/constants/strategies";
+import { STRATEGIES } from "@/constants/market-constants";
 import AdminLogin from "./admin-login";
+import AnomalyTradingSetup from "./anomaly-trading-setup";
 
 type MonitoredStratType = (typeof STRATEGIES)[0] & { strategy_id?: number };
 
@@ -19,6 +20,7 @@ export default function AdminPage() {
   const [MonitoredStrategies, setMonitoredStrategies] =
     useState<MonitoredStratType[]>(STRATEGIES);
   const [OpenStrategyId, setOpenStrategyId] = useState<number | null>(null);
+  const [AddingStrategy, setAddingStrategy] = useState(false);
 
   const handleLogout = () => {
     setAdmin(false);
@@ -31,17 +33,50 @@ export default function AdminPage() {
         const dbStrategies = res.strategies as {
           strategy_id: number;
           name: string;
+          key: string;
         }[];
         setMonitoredStrategies((prev) => {
           return prev.map((strat) => ({
             ...strat,
-            strategy_id: dbStrategies.find((s) => s.name === strat.name)
+            strategy_id: dbStrategies.find((s) => s.key === strat.key)
               ?.strategy_id,
           }));
         });
       }
     } catch (error) {
       console.log("error: ", error);
+    }
+  };
+
+  const handleAddStrategy = async (param: {
+    name: string;
+    description: string;
+    key: string;
+  }) => {
+    setAddingStrategy(true);
+    try {
+      const res = await Api.post("/strategy", {
+        name: param.name,
+        description: param.description,
+        key: param.key,
+      });
+      if (res.ok) {
+        setMonitoredStrategies((prev) => {
+          return prev.map((strat) => {
+            if (strat.key === param.key) {
+              return {
+                ...strat,
+                strategy_id: res.strategy_id,
+              };
+            }
+            return strat;
+          });
+        });
+      }
+    } catch (error) {
+      console.log("error: ", error);
+    } finally {
+      setAddingStrategy(false);
     }
   };
 
@@ -70,11 +105,22 @@ export default function AdminPage() {
         <h2 className="text-xl font-bold">Monitored Strategies</h2>
         <div className="flex flex-col gap-4 border-2 rounded-md px-4 py-2">
           {MonitoredStrategies.map((strat) => (
-            <div key={strat.name} className="w-full">
+            <div key={strat.key} className="w-full">
               <div className="flex flex-row justify-between">
                 <h3 className="text-lg font-bold">{strat.name}</h3>
                 {isNaN(Number(strat.strategy_id)) ? (
-                  <Button>Add</Button>
+                  <Button
+                    onClick={() =>
+                      handleAddStrategy({
+                        name: strat.name,
+                        description: strat.description,
+                        key: strat.key,
+                      })
+                    }
+                    disabled={AddingStrategy}
+                  >
+                    {AddingStrategy ? "Adding..." : "Add"}
+                  </Button>
                 ) : (
                   <Button
                     onClick={(e) => {
@@ -91,6 +137,10 @@ export default function AdminPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="flex flex-col w-full h-full">
+        {OpenStrategyId === 1 && <AnomalyTradingSetup />}
       </div>
     </div>
   );

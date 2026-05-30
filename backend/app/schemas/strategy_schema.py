@@ -5,6 +5,7 @@ from pydantic import BaseModel
 class GetStrategy(BaseModel):
     strategy_id: int = Field(validation_alias="pk_strategy_id")
     name: str
+    key: str
 
     model_config = {
         "from_attributes": True
@@ -15,13 +16,8 @@ class GetStrategies(BaseModel):
 
 class CreateStrategyRequest(BaseModel):
     name: str
+    key: str
     description: str
 
-class StrategyResponse(BaseModel):
-    pk_strategy_id: int
-    name: str
-    description: str
-
-    model_config = {
-        "from_attributes": True
-    }
+class CreateStrategyResponse(BaseModel):
+    strategy_id: int

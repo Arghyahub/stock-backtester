@@ -11,7 +11,7 @@ import {
   type SortingState,
   type ColumnFiltersState,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronUp, ChevronsUpDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronDown, ChevronUp, ChevronsUpDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, FilterX } from "lucide-react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -19,15 +19,23 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "
 
 type FilterType = "text" | "number" | "select" | "date";
 
-type ColumnConfig = {
-  key: string;
+export type DataTableColumnConfig<T = any> = {
+  key: Extract<keyof T, string> | string;
   title: string;
   filter_type?: FilterType;
+  onClick?: (row: T) => any;
+  component?: (row: T) => React.ReactNode;
 };
 
-type Props = {
-  columns: ColumnConfig[];
-  data: Record<string, any>[];
+type Props<T> = {
+  columns: DataTableColumnConfig<T>[];
+  data: T[];
+  manualSorting?: boolean;
+  manualFiltering?: boolean;
+  manualPagination?: boolean;
+  pageCount?: number;
+  rowCount?: number;
+  HeaderComponent?: React.ReactNode;
 };
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
@@ -95,21 +103,27 @@ function NumberFilter({
   onChange: (key: string, value: string, type: "min" | "max") => void;
 }) {
   return (
-    <div className="flex gap-1">
-      <input
-        type="number"
-        placeholder="Min"
-        className={`${inputBase} w-1/2`}
-        value={minValue}
-        onChange={(e) => onChange(columnKey, e.target.value, "min")}
-      />
-      <input
-        type="number"
-        placeholder="Max"
-        className={`${inputBase} w-1/2`}
-        value={maxValue}
-        onChange={(e) => onChange(columnKey, e.target.value, "max")}
-      />
+    <div className="flex flex-col gap-1 w-full">
+      <div className="flex items-center gap-1 w-full">
+        <span className="text-xs text-on-surface-variant w-5 shrink-0 text-right">&gt;=</span>
+        <input
+          type="number"
+          placeholder="Min"
+          className={`${inputBase} flex-1`}
+          value={minValue}
+          onChange={(e) => onChange(columnKey, e.target.value, "min")}
+        />
+      </div>
+      <div className="flex items-center gap-1 w-full">
+        <span className="text-xs text-on-surface-variant w-5 shrink-0 text-right">&lt;=</span>
+        <input
+          type="number"
+          placeholder="Max"
+          className={`${inputBase} flex-1`}
+          value={maxValue}
+          onChange={(e) => onChange(columnKey, e.target.value, "max")}
+        />
+      </div>
     </div>
   );
 }
@@ -125,20 +139,51 @@ function DateFilter({
   toValue: string;
   onChange: (key: string, value: string, type: "from" | "to") => void;
 }) {
+  const toLocalString = (val: string) => {
+    if (!val) return "";
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return val;
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const hours = String(d.getHours()).padStart(2, "0");
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  const handleDateChange = (val: string, type: "from" | "to") => {
+    if (!val) {
+      onChange(columnKey, "", type);
+      return;
+    }
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) {
+      onChange(columnKey, d.toISOString(), type);
+    } else {
+      onChange(columnKey, val, type);
+    }
+  };
+
   return (
-    <div className="flex gap-1">
-      <input
-        type="date"
-        className={`${inputBase} w-1/2`}
-        value={fromValue}
-        onChange={(e) => onChange(columnKey, e.target.value, "from")}
-      />
-      <input
-        type="date"
-        className={`${inputBase} w-1/2`}
-        value={toValue}
-        onChange={(e) => onChange(columnKey, e.target.value, "to")}
-      />
+    <div className="flex flex-col gap-1 w-full">
+      <div className="flex items-center gap-1 w-full">
+        <span className="text-xs text-on-surface-variant w-5 shrink-0 text-right">&gt;=</span>
+        <input
+          type="datetime-local"
+          className={`${inputBase} flex-1`}
+          value={toLocalString(fromValue)}
+          onChange={(e) => handleDateChange(e.target.value, "from")}
+        />
+      </div>
+      <div className="flex items-center gap-1 w-full">
+        <span className="text-xs text-on-surface-variant w-5 shrink-0 text-right">&lt;=</span>
+        <input
+          type="datetime-local"
+          className={`${inputBase} flex-1`}
+          value={toLocalString(toValue)}
+          onChange={(e) => handleDateChange(e.target.value, "to")}
+        />
+      </div>
     </div>
   );
 }
@@ -261,7 +306,7 @@ function PagButton({
 
 // ─── Main Table Component ───────────────────────────────────────────────────────
 
-function DataTable({ columns: columnConfigs, data }: Props) {
+function DataTable<T>({ columns: columnConfigs, data, manualSorting, manualFiltering, manualPagination, pageCount, rowCount, HeaderComponent }: Props<T>) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -285,17 +330,20 @@ function DataTable({ columns: columnConfigs, data }: Props) {
   const initialColumnFilters = useMemo<ColumnFiltersState>(() => {
     const filters: ColumnFiltersState = [];
     for (const col of columnConfigs) {
-      if (col.filter_type === "number") {
-        const min = searchParams.get(`filter_${col.key}_min`) ?? "";
-        const max = searchParams.get(`filter_${col.key}_max`) ?? "";
-        if (min || max) filters.push({ id: col.key, value: [min, max] });
-      } else if (col.filter_type === "date") {
-        const from = searchParams.get(`filter_${col.key}_from`) ?? "";
-        const to = searchParams.get(`filter_${col.key}_to`) ?? "";
-        if (from || to) filters.push({ id: col.key, value: [from, to] });
+      const val = searchParams.get(col.key as string);
+      if (!val) continue;
+
+      if (col.filter_type === "number" || col.filter_type === "date") {
+        try {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed) && parsed.length === 2) {
+            filters.push({ id: col.key as string, value: parsed });
+          }
+        } catch {
+          // invalid json, ignore
+        }
       } else {
-        const v = searchParams.get(`filter_${col.key}`) ?? "";
-        if (v) filters.push({ id: col.key, value: v });
+        filters.push({ id: col.key as string, value: val });
       }
     }
     return filters;
@@ -305,6 +353,7 @@ function DataTable({ columns: columnConfigs, data }: Props) {
 
   const [sorting, setSorting] = useState<SortingState>(initialSorting);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(initialColumnFilters);
+  const [showFilters, setShowFilters] = useState(initialColumnFilters.length > 0);
   const [pageIndex, setPageIndex] = useState(initialPage);
   const pageSize = 20;
 
@@ -340,15 +389,7 @@ function DataTable({ columns: columnConfigs, data }: Props) {
 
     // Clear all filter params first
     for (const col of columnConfigs) {
-      if (col.filter_type === "number") {
-        updates[`filter_${col.key}_min`] = null;
-        updates[`filter_${col.key}_max`] = null;
-      } else if (col.filter_type === "date") {
-        updates[`filter_${col.key}_from`] = null;
-        updates[`filter_${col.key}_to`] = null;
-      } else {
-        updates[`filter_${col.key}`] = null;
-      }
+      updates[col.key as string] = null;
     }
 
     // Set active filter params
@@ -357,11 +398,11 @@ function DataTable({ columns: columnConfigs, data }: Props) {
       if (!col) continue;
 
       if ((col.filter_type === "number" || col.filter_type === "date") && Array.isArray(f.value)) {
-        const suffix = col.filter_type === "number" ? ["min", "max"] : ["from", "to"];
-        if (f.value[0]) updates[`filter_${col.key}_${suffix[0]}`] = f.value[0];
-        if (f.value[1]) updates[`filter_${col.key}_${suffix[1]}`] = f.value[1];
+        if (f.value[0] || f.value[1]) {
+          updates[col.key as string] = JSON.stringify(f.value);
+        }
       } else if (typeof f.value === "string" && f.value) {
-        updates[`filter_${col.key}`] = f.value;
+        updates[col.key as string] = f.value as string;
       }
     }
 
@@ -371,11 +412,11 @@ function DataTable({ columns: columnConfigs, data }: Props) {
 
   // ── Build column definitions ────────────────────────────────────────────────
 
-  const tanstackColumns = useMemo<ColumnDef<Record<string, any>>[]>(() => {
+  const tanstackColumns = useMemo<ColumnDef<T>[]>(() => {
     return columnConfigs.map((col) => {
-      const def: ColumnDef<Record<string, any>> = {
-        id: col.key,
-        accessorKey: col.key,
+      const def: ColumnDef<T> = {
+        id: col.key as string,
+        accessorKey: col.key as string,
         header: col.title,
         enableSorting: true,
       };
@@ -396,7 +437,7 @@ function DataTable({ columns: columnConfigs, data }: Props) {
           const val = new Date(raw as string).getTime();
           const [from, to] = filterValue as [string, string];
           if (from && val < new Date(from).getTime()) return false;
-          if (to && val > new Date(to + "T23:59:59").getTime()) return false;
+          if (to && val > new Date(to).getTime()) return false;
           return true;
         };
         // Sort dates properly
@@ -420,13 +461,18 @@ function DataTable({ columns: columnConfigs, data }: Props) {
         };
       }
 
-      // Format dates nicely in cells
-      if (col.filter_type === "date") {
+      // Format dates nicely in cells or use custom component
+      if (col.component) {
+        def.cell = ({ row }) => col.component!(row.original);
+      } else if (col.filter_type === "date") {
         def.cell = ({ getValue }) => {
           const raw = getValue();
           if (!raw) return "—";
           const d = new Date(raw as string);
-          return isNaN(d.getTime()) ? String(raw) : d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+          return isNaN(d.getTime()) ? String(raw) : d.toLocaleString("en-IN", { 
+            day: "2-digit", month: "short", year: "numeric",
+            hour: "2-digit", minute: "2-digit"
+          });
         };
       }
 
@@ -440,8 +486,8 @@ function DataTable({ columns: columnConfigs, data }: Props) {
     const map: Record<string, string[]> = {};
     for (const col of columnConfigs) {
       if (col.filter_type === "select") {
-        const unique = Array.from(new Set(data.map((r) => String(r[col.key] ?? "")))).filter(Boolean).sort();
-        map[col.key] = unique;
+        const unique = Array.from(new Set(data.map((r) => String((r as any)[col.key] ?? "")))).filter(Boolean).sort();
+        map[col.key as string] = unique;
       }
     }
     return map;
@@ -464,6 +510,11 @@ function DataTable({ columns: columnConfigs, data }: Props) {
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     enableSortingRemoval: true,
+    manualSorting,
+    manualFiltering,
+    manualPagination,
+    pageCount,
+    rowCount,
   });
 
   // ── Filter change handlers ──────────────────────────────────────────────────
@@ -506,10 +557,31 @@ function DataTable({ columns: columnConfigs, data }: Props) {
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
-  const totalRows = table.getFilteredRowModel().rows.length;
+  const totalRows = rowCount ?? table.getFilteredRowModel().rows.length;
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Table Actions */}
+      <div className="flex flex-row">
+        {HeaderComponent}
+        <button
+          onClick={() => {
+            if (showFilters) {
+              setColumnFilters([]);
+            }
+            setShowFilters(!showFilters);
+          }}
+          className={`inline-flex ml-auto items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+            showFilters 
+              ? "border-brand-primary bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20" 
+              : "border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low"
+          }`}
+        >
+          {showFilters ? <FilterX className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
+          {showFilters ? "Clear Filters" : "Filter"}
+        </button>
+      </div>
+
       {/* Table container */}
       <div className="overflow-auto rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm">
         <table className="w-full border-collapse text-sm">
@@ -547,48 +619,50 @@ function DataTable({ columns: columnConfigs, data }: Props) {
                 </tr>
 
                 {/* Filter row */}
-                <tr className="border-b border-outline-variant bg-surface-container-low/60">
-                  {headerGroup.headers.map((header) => {
-                    const col = columnConfigs.find((c) => c.key === header.column.id);
-                    const filterValue = header.column.getFilterValue();
+                {showFilters && (
+                  <tr className="border-b border-outline-variant bg-surface-container-low/60">
+                    {headerGroup.headers.map((header) => {
+                      const col = columnConfigs.find((c) => c.key === header.column.id);
+                      const filterValue = header.column.getFilterValue();
 
-                    return (
-                      <th key={`filter-${header.id}`} className="px-4 py-2">
-                        {col?.filter_type === "text" && (
-                          <TextFilter
-                            columnKey={col.key}
-                            value={(filterValue as string) ?? ""}
-                            onChange={handleTextFilterChange}
-                          />
-                        )}
-                        {col?.filter_type === "number" && (
-                          <NumberFilter
-                            columnKey={col.key}
-                            minValue={((filterValue as [string, string]) ?? ["", ""])[0]}
-                            maxValue={((filterValue as [string, string]) ?? ["", ""])[1]}
-                            onChange={handleNumberFilterChange}
-                          />
-                        )}
-                        {col?.filter_type === "date" && (
-                          <DateFilter
-                            columnKey={col.key}
-                            fromValue={((filterValue as [string, string]) ?? ["", ""])[0]}
-                            toValue={((filterValue as [string, string]) ?? ["", ""])[1]}
-                            onChange={handleDateFilterChange}
-                          />
-                        )}
-                        {col?.filter_type === "select" && (
-                          <SelectFilter
-                            columnKey={col.key}
-                            value={(filterValue as string) ?? ""}
-                            options={selectOptions[col.key] ?? []}
-                            onChange={handleSelectFilterChange}
-                          />
-                        )}
-                      </th>
-                    );
-                  })}
-                </tr>
+                      return (
+                        <th key={`filter-${header.id}`} className="px-4 py-2">
+                          {col?.filter_type === "text" && (
+                            <TextFilter
+                              columnKey={col.key as string}
+                              value={(filterValue as string) ?? ""}
+                              onChange={handleTextFilterChange}
+                            />
+                          )}
+                          {col?.filter_type === "number" && (
+                            <NumberFilter
+                              columnKey={col.key as string}
+                              minValue={((filterValue as [string, string]) ?? ["", ""])[0]}
+                              maxValue={((filterValue as [string, string]) ?? ["", ""])[1]}
+                              onChange={handleNumberFilterChange}
+                            />
+                          )}
+                          {col?.filter_type === "date" && (
+                            <DateFilter
+                              columnKey={col.key as string}
+                              fromValue={((filterValue as [string, string]) ?? ["", ""])[0]}
+                              toValue={((filterValue as [string, string]) ?? ["", ""])[1]}
+                              onChange={handleDateFilterChange}
+                            />
+                          )}
+                          {col?.filter_type === "select" && (
+                            <SelectFilter
+                              columnKey={col.key as string}
+                              value={(filterValue as string) ?? ""}
+                              options={selectOptions[col.key as string] ?? []}
+                              onChange={handleSelectFilterChange}
+                            />
+                          )}
+                        </th>
+                      );
+                    })}
+                  </tr>
+                )}
               </React.Fragment>
             ))}
           </thead>
@@ -612,14 +686,18 @@ function DataTable({ columns: columnConfigs, data }: Props) {
                     i % 2 === 0 ? "bg-surface-container-lowest" : "bg-surface-primary/40"
                   }`}
                 >
-                  {row.getVisibleCells().map((cell) => (
-                    <td
-                      key={cell.id}
-                      className="whitespace-nowrap px-4 py-2.5 text-sm text-on-surface"
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
+                  {row.getVisibleCells().map((cell) => {
+                    const colConfig = columnConfigs.find((c) => c.key === cell.column.id);
+                    return (
+                      <td
+                        key={cell.id}
+                        className={`whitespace-nowrap px-4 py-2.5 text-sm text-on-surface ${colConfig?.onClick ? "cursor-pointer hover:underline text-brand-primary" : ""}`}
+                        onClick={colConfig?.onClick ? () => colConfig.onClick!(row.original) : undefined}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))
             )}
@@ -666,4 +744,4 @@ function DataTable({ columns: columnConfigs, data }: Props) {
   );
 }
 
-export default memo(DataTable);
+export default memo(DataTable) as <T>(props: Props<T> & { key?: React.Key }) => ReturnType<typeof DataTable>;

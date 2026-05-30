@@ -10,7 +10,8 @@ class StrategyRepository:
     def create_strategy(db: Session, data: CreateStrategyRequest):
         strategy = Strategy(
             name=data.name,
-            description=data.description
+            description=data.description,
+            key=data.key
         )
         db.add(strategy)
         db.commit()
