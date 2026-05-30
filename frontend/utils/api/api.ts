@@ -29,6 +29,7 @@ class Api {
     const response = await fetch(`${this.baseUrl}${url}`, {
       headers: this.getHeaders(),
     });
+    console.log("response: ", response.status);
     return this.formatResponse(response);
   }
 

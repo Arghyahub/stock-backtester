@@ -1,3 +1,5 @@
+from fastapi import Response
+from app.schemas.user_schema import VerifyTokenResponse
 from app.core.dependecies import get_current_user
 from app.db.models import User
 from email.header import Header
@@ -20,7 +22,7 @@ from app.schemas.user_schema import (
 )
 
 user_router = APIRouter(
-    prefix="/users",
+    prefix="/user",
     tags=["Users"]
 )
 
@@ -60,7 +62,8 @@ def create_user(
 )
 def login(
     data: LoginRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    response: Response = Response
 ):
 
     user = UserRepository.login(
@@ -80,13 +83,20 @@ def login(
         user.pk_user_id
     )
 
+    response.status_code = status.HTTP_200_OK
     return {
         "access_token": access_token
     }
 
 # current_user: User = Depends(get_current_user)
 
+@user_router.get(
+    "/verify",
+    response_model=VerifyTokenResponse
+)
 def verify_token(
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
+    response: Response = Response
 ):
-    return {"status": "ok"}, status.HTTP_200_OK
+    response.status_code = status.HTTP_200_OK
+    return {"success": True}
