@@ -21,12 +21,14 @@ export default function AdminPage() {
     useState<MonitoredStratType[]>(STRATEGIES);
   const [OpenStrategyId, setOpenStrategyId] = useState<number | null>(null);
   const [AddingStrategy, setAddingStrategy] = useState(false);
+  const [IsFetchingStrategy, setIsFetchingStrategy] = useState(false);
 
   const handleLogout = () => {
     setAdmin(false);
   };
 
   const fetchStrategies = async () => {
+    setIsFetchingStrategy(true);
     try {
       const res = await Api.get("/strategy");
       if (res.status === 200) {
@@ -45,6 +47,8 @@ export default function AdminPage() {
       }
     } catch (error) {
       console.log("error: ", error);
+    } finally {
+      setIsFetchingStrategy(false);
     }
   };
 
@@ -119,7 +123,11 @@ export default function AdminPage() {
                     }
                     disabled={AddingStrategy}
                   >
-                    {AddingStrategy ? "Adding..." : "Add"}
+                    {IsFetchingStrategy
+                      ? "Fetching..."
+                      : AddingStrategy
+                        ? "Adding..."
+                        : "Add"}
                   </Button>
                 ) : (
                   <Button

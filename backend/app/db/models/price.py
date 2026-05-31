@@ -1,3 +1,5 @@
+from sqlalchemy import Enum
+from app.db.enums import IntervalType
 from datetime import datetime
 
 from sqlalchemy import DateTime
@@ -40,8 +42,8 @@ class Price(Base):
         index=True
     )
 
-    interval: Mapped[int] = mapped_column(
-        Integer,
+    interval: Mapped[IntervalType] = mapped_column(
+        Enum(IntervalType),
         nullable=False
     )
 
@@ -61,11 +63,6 @@ class Price(Base):
     )
 
     close: Mapped[float] = mapped_column(
-        Float,
-        nullable=False
-    )
-
-    adjusted_close: Mapped[float] = mapped_column(
         Float,
         nullable=False
     )

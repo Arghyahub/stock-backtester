@@ -1,5 +1,3 @@
-
-
 from app.schemas.strategy_schema import CreateStrategyResponse
 from app.schemas.strategy_schema import GetStrategy
 from app.schemas.strategy_schema import GetStrategies
