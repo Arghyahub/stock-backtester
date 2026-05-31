@@ -133,7 +133,11 @@ export default function AdminPage() {
                   <Button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setOpenStrategyId(Number(strat.strategy_id));
+                      setOpenStrategyId((prev) =>
+                        prev === Number(strat.strategy_id)
+                          ? null
+                          : Number(strat.strategy_id),
+                      );
                     }}
                   >
                     Open

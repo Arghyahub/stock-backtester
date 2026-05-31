@@ -1,6 +1,6 @@
 "use client"
 import { SECTORAL_INDICES } from '@/constants/market-constants'
-import React, { memo, useEffect, useState } from "react";
+import React, { memo, useEffect, useMemo, useState } from "react";
 import DataTable, { DataTableColumnConfig } from "@/components/table/table";
 import { Button } from "@/components/ui/button";
 import Api from "@/utils/api/api";
@@ -10,16 +10,9 @@ type SectoralIndexType = (typeof SECTORAL_INDICES)[number] & {
   equity_id?: number;
   start_date?: string;
   end_date?: string;
-  signals?: number;
+  signal_count?: number;
+  actions?: undefined;
 };
-
-const TableHeader: DataTableColumnConfig<SectoralIndexType>[] = [
-  { key: "name", title: "Name", filter_type: "text" },
-  { key: "ticker", title: "Ticker(Yahoo)", filter_type: "text" },
-  { key: "start_date", title: "Start Date", filter_type: "date" },
-  { key: "end_date", title: "End Date", filter_type: "date" },
-  { key: "signals", title: "Signals", filter_type: "number" },
-];
 
 const AnomalyTradingSetup = () => {
   const [sectoralIndex, setSectoralIndex] =
@@ -27,14 +20,15 @@ const AnomalyTradingSetup = () => {
 
   const getSectoralIndices = async () => {
     try {
-      const resp = await Api.get("/equity/sectoral-indices");
+      const resp = await Api.get("/equity/summary?type=SECTOR");
+      console.log("resp: ", resp.ok);
       if (resp.ok) {
-        const data = resp?.equity as {
+        const data = resp?.equities as {
           equity_id: number;
           start_date: string;
           end_date: string;
           ticker: string;
-          signals: number;
+          signal_count: number;
         }[];
         const updatedData = SECTORAL_INDICES.map((strat) => {
           const equity = data.find((eq) => eq.ticker === strat.ticker);
@@ -44,7 +38,7 @@ const AnomalyTradingSetup = () => {
               equity_id: equity.equity_id,
               start_date: equity.start_date,
               end_date: equity.end_date,
-              signals: equity.signals,
+              signal_count: equity.signal_count,
             };
           }
           return strat;
@@ -58,10 +52,10 @@ const AnomalyTradingSetup = () => {
     }
   };
 
-  const trackSectoralIndices = async () => {
+  const trackSectoralIndices = async (indice?: SectoralIndexType) => {
     try {
       const resp = await Api.post("/equity/track-equities", {
-        equities: SECTORAL_INDICES,
+        equities: indice ? [indice] : SECTORAL_INDICES,
         type: "SECTOR",
         interval: "ONE_DAY",
       });
@@ -75,6 +69,34 @@ const AnomalyTradingSetup = () => {
       toast.error("Failed to track sectoral indices");
     }
   };
+
+  const TableHeader: DataTableColumnConfig<SectoralIndexType>[] = useMemo(
+    () => [
+      { key: "name", title: "Name", filter_type: "text" },
+      { key: "ticker", title: "Ticker(Yahoo)", filter_type: "text" },
+      { key: "start_date", title: "Start Date", filter_type: "date" },
+      { key: "end_date", title: "End Date", filter_type: "date" },
+      { key: "signal_count", title: "Signals", filter_type: "number" },
+      {
+        key: "actions",
+        title: "Actions",
+        component: (row) => (
+          <div className="flex flex-row gap-2">
+            <Button
+              onClick={() =>
+                trackSectoralIndices({ name: row.name, ticker: row.ticker })
+              }
+              size="sm"
+              variant="secondary"
+            >
+              Track
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [],
+  );
 
   useEffect(() => {
     getSectoralIndices();
@@ -96,7 +118,7 @@ const AnomalyTradingSetup = () => {
           HeaderComponent={
             <div className="flex flex-row gap-4">
               <Button
-                onClick={trackSectoralIndices}
+                onClick={() => trackSectoralIndices()}
                 size="sm"
                 variant="secondary"
               >

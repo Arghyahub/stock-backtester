@@ -1,3 +1,4 @@
+from app.schemas.equity_schema import EquitySummary
 from app.schemas.equity_schema import TrackEquityBase
 from app.utils.yfinance_util import YFinanceUtil
 from datetime import datetime
@@ -119,6 +120,46 @@ class EquityRepository:
         if new_prices:
             db.add_all(new_prices)
             db.commit()
+        
+    @staticmethod
+    def get_equity_summary(db: Session, type: str):
+        qry = text("""
+            SELECT 
+                e.pk_equity_id as equity_id,
+                e.name,
+                e.ticker,
+                first_price.date_time as start_date,
+                last_price.date_time as end_date,
+                signal_count.signal_count
+            FROM "equities" e
+            left join lateral(
+                select 
+                    p.date_time
+                from "prices" p 
+                where p.equity_id = e.pk_equity_id 
+                and p.interval = 'ONE_DAY'
+                order by p.date_time asc limit 1
+            ) first_price on TRUE
+            left join lateral(
+                select 
+                    p.date_time 
+                from "prices" p 
+                where p.equity_id = e.pk_equity_id 
+                and p.interval = 'ONE_DAY'
+                order by p.date_time desc limit 1
+            ) last_price on TRUE
+            left join lateral(
+                select 
+                    count(*) as signal_count
+                from "trades" t 
+                where t.equity_id = e.pk_equity_id
+            ) signal_count on TRUE
+            WHERE e.type  = :type
+            ;
+        """)
+
+        result = db.execute(qry, {"type": type}).all()
+        return [dict(row._mapping) for row in result]
             
         
         

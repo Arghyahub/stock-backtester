@@ -1,3 +1,6 @@
+from app.schemas.equity_schema import EquitySummaryResponse
+from app.schemas.equity_schema import EquitySummary
+from app.db.enums import EquityType
 from app.repositories.equity_repository import EquityRepository
 from app.db.database import get_db
 from fastapi import Depends
@@ -21,3 +24,15 @@ def track_equity(
 ):
     EquityRepository.create_and_track_equities(db, data)
     return {"message": "Equities tracked successfully", "success": True}
+
+@equity_router.get(
+    "/summary",
+    response_model=EquitySummaryResponse
+)
+def get_equity_summary(
+    type: EquityType,
+    db: Session = Depends(get_db)
+):
+    equities = EquityRepository.get_equity_summary(db, type.value)
+    return {"equities": equities, "success": True, "message": "Equities summary fetched successfully"}
+
