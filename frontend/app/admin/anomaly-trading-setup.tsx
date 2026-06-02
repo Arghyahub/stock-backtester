@@ -106,12 +106,6 @@ const AnomalyTradingSetup = () => {
     <div className="border px-4 py-2 rounded-md flex flex-col gap-4">
       <h1 className="text-lg font-bold">Anomaly Trading Setup</h1>
       <div className="flex flex-col gap-2">
-        {/* {sectoralIndex.map((strat) => (
-					<div key={strat.ticker} className="flex flex-row gap-2">
-						<p>{strat.name}</p>
-						<p>{strat.ticker}</p>
-					</div>
-				))} */}
         <DataTable
           columns={TableHeader}
           data={sectoralIndex}

@@ -1,3 +1,4 @@
+from app.schemas.equity_schema import YFinanceModel
 from app.schemas.equity_schema import EquitySummary
 from app.schemas.equity_schema import TrackEquityBase
 from app.utils.yfinance_util import YFinanceUtil
@@ -160,7 +161,39 @@ class EquityRepository:
 
         result = db.execute(qry, {"type": type}).all()
         return [dict(row._mapping) for row in result]
+
+    @staticmethod
+    def get_constituent_stocks(db: Session, parent_equity_id: int):
+        qry = text("""
+            select 
+                pk_equity_id as equity_id,
+                name,
+                ticker
+            from equities e
+            join relation_stock_equity rse on e.pk_equity_id = rse.stock_equity_id
+            where rse.parent_equity_id = :parent_equity_id
+        """)
+
+        result = db.execute(qry, {"parent_equity_id": parent_equity_id}).all()
+
+        return [dict(row._mapping) for row in result]
             
-        
+    @staticmethod
+    def get_equity_prices(db: Session, equity_id: int) -> list[YFinanceModel]:
+        qry = text("""
+        SELECT
+            date_time as Date,
+            open as Open,
+            high as High,
+            low as Low,
+            close as Close,
+            volume as Volume
+        FROM "prices" p 
+        WHERE p.equity_id = 1
+        ORDER BY p.date_time ASC
+        """)
+
+        result = db.execute(qry, {"equity_id": equity_id}).all()
+        return [dict(row._mapping) for row in result]
         
 

@@ -23,3 +23,20 @@ class EquitySummary(BaseModel):
 
 class EquitySummaryResponse(ReponseModel):
     equities: list[EquitySummary]
+
+class ConstituentStock(BaseModel):
+    equity_id: int
+    name: str
+    ticker: str
+
+class ConstituentStockResponse(ReponseModel):
+    equities: list[ConstituentStock]
+
+class YFinanceModel(BaseModel):
+    Date: datetime
+    Open: float
+    High: float
+    Low: float
+    Close: float
+    Volume: float
+

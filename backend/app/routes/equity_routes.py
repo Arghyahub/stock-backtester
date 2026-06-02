@@ -1,3 +1,4 @@
+from app.schemas.equity_schema import ConstituentStockResponse
 from app.schemas.equity_schema import EquitySummaryResponse
 from app.schemas.equity_schema import EquitySummary
 from app.db.enums import EquityType
@@ -35,4 +36,30 @@ def get_equity_summary(
 ):
     equities = EquityRepository.get_equity_summary(db, type.value)
     return {"equities": equities, "success": True, "message": "Equities summary fetched successfully"}
+
+
+@equity_router.get(
+    "/get-constituent-stocks",
+    response_model=ConstituentStockResponse
+)
+def get_constituent_stocks(
+    parent_equity_id: int,
+    db: Session = Depends(get_db)
+):
+    equities = EquityRepository.get_constituent_stocks(db, parent_equity_id)
+    return {"equities": equities, "success": True, "message": "Constituent stocks fetched successfully"}
+
+# =========== Anomaly Trading ================
+
+@equity_router.get(
+    "/backtrack-sectoral-anomaly",
+)
+def backtrack_sectoral_anomaly(
+    sector_id: int,
+    db: Session = Depends(get_db),
+):
+    pass
+
+
+# ===========================================-
 
