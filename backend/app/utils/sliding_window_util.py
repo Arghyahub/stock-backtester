@@ -4,13 +4,13 @@ import pandas as pd
 import numpy as np
 
 class SlidingWindowUtil:
-    def __init__(self,data:list[YFinanceModel], MIN_WINDOW: int = 1, MAX_WINDOW: int = 60, MIN_OBSERVATIONS: int = 4, MIN_WIN_RATE: float = 0.65, MIN_AVG_RETURN: float = 3.0, MIN_SHARPE: float = 0.8, MAX_DRAWDOWN: float = -5.0):
+    def __init__(self,data:list[YFinanceModel], MIN_WINDOW: int = 1, MAX_WINDOW: int = 60, MIN_OBSERVATIONS: int = 4, MIN_WIN_RATE: float = 65.0, MIN_AVG_RETURN: float = 3.0, MIN_SHARPE: float = 0.8, MAX_DRAWDOWN: float = -5.0):
         self.MIN_WINDOW = MIN_WINDOW
         self.MAX_WINDOW = MAX_WINDOW
         self.MIN_OBSERVATIONS = MIN_OBSERVATIONS
         df = pd.DataFrame(data)
-        df = df.sort_values(by='date_time')
-        df = df.set_index('date_time')
+        df = df.sort_values(by='Date')
+        df = df.set_index('Date')
         self.df = df
         # Filters
         self.MIN_WIN_RATE = MIN_WIN_RATE
@@ -32,7 +32,7 @@ class SlidingWindowUtil:
     #     return df[['Close']]
 
 
-    def get_window_return(close_series, start_idx, window_size):
+    def get_window_return(self,close_series, start_idx, window_size):
         """
         Given a Close price series and a starting position index,
         return the % return over the next `window_size` trading days.
@@ -51,7 +51,7 @@ class SlidingWindowUtil:
         return (price_end - price_start) / price_start * 100  # % return
 
 
-    def get_max_drawdown(close_series, start_idx, window_size):
+    def get_max_drawdown(self,close_series, start_idx, window_size):
         """
         Compute the maximum intra-window drawdown (%) from the entry price.
         This measures how far the price drops below entry at any point in the window.
@@ -115,7 +115,7 @@ class SlidingWindowUtil:
     #
     # This handles weekends/holidays: if Oct 1 is a Sunday, we use Oct 2 (Monday).
 
-    def find_nearest_trading_day(df_index, year, month, day):
+    def find_nearest_trading_day(self,df_index, year, month, day):
         """
         Given a DatetimeIndex (trading days only), find the first trading day
         on or after the target (year, month, day).
@@ -135,9 +135,50 @@ class SlidingWindowUtil:
         
         nearest = candidates[0]
         return df_index.get_loc(nearest)
+    
+    # Normalize each metric to 0-1 scale within the filtered set
+    def minmax(self,series):
+        mn, mx = series.min(), series.max()
+        if mx == mn:
+            return pd.Series(0.5, index=series.index)
+        return (series - mn) / (mx - mn)
+
+    def apply_ranking(self, results):
+        if not results:
+            return []
+
+        df = pd.DataFrame(results)
+
+        df = df[
+            (df['win_rate']     >= self.MIN_WIN_RATE)     &
+            (df['avg_return']   >= self.MIN_AVG_RETURN)   &
+            (df['sharpe']       >= self.MIN_SHARPE)       &
+            (df['max_drawdown'] >= self.MAX_DRAWDOWN)     &
+            (df['n_obs']        >= (self.MIN_OBSERVATIONS -1))
+        ].copy()
+
+        if len(df) == 0:
+            return []
+
+        df['score_return'] = self.minmax(df['avg_return'])
+        df['score_winrate'] = self.minmax(df['win_rate'])
+        df['score_sharpe'] = self.minmax(df['sharpe'])
+        df['score_drawdown'] = self.minmax(df['max_drawdown'])
+
+        df['composite_score'] = (
+            df['score_sharpe'] * 0.35 +
+            df['score_winrate'] * 0.30 +
+            df['score_return'] * 0.25 +
+            df['score_drawdown'] * 0.10
+        ).round(4)
+
+        return (
+            df.sort_values("composite_score", ascending=False)
+            .to_dict("records")
+        )
 
 
-    def scan_sector(self,sector_name):
+    def scan_sector(self):
         df = self.df[['Close']]
         """
         Run the full sliding window scan for one sector.
@@ -179,17 +220,9 @@ class SlidingWindowUtil:
                 
                 if metrics is None:
                     continue  # Not enough observations
-
-                # Filter Data
-                if metrics['win_rate'] < self.MIN_WIN_RATE or \
-                    metrics['avg_return'] < self.MIN_AVG_RETURN or \
-                    metrics['sharpe'] < self.MIN_SHARPE or \
-                    metrics['max_drawdown'] < self.MAX_DRAWDOWN or \
-                    metrics['n_obs'] < (self.MIN_OBSERVATIONS - 1):
-                    continue
                 
                 results.append({
-                    'sector'      : sector_name,
+                    # 'sector'      : sector_name,
                     'month'       : month,
                     'day'         : day,
                     'start_label' : f"{cal_date.strftime('%b')} {day:02d}",  # e.g. 'Oct 01'
@@ -197,4 +230,5 @@ class SlidingWindowUtil:
                     'end_label'   : (cal_date + pd.Timedelta(days=window_size)).strftime('%b %d'),
                     **metrics
                 })
-        return results
+        
+        return self.apply_ranking(results)

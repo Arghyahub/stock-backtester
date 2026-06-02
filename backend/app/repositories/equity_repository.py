@@ -182,14 +182,14 @@ class EquityRepository:
     def get_equity_prices(db: Session, equity_id: int) -> list[YFinanceModel]:
         qry = text("""
         SELECT
-            date_time as Date,
-            open as Open,
-            high as High,
-            low as Low,
-            close as Close,
-            volume as Volume
+            date_time as "Date",
+            open as "Open",
+            high as "High",
+            low as "Low",
+            close as "Close",
+            volume as "Volume"
         FROM "prices" p 
-        WHERE p.equity_id = 1
+        WHERE p.equity_id =:equity_id
         ORDER BY p.date_time ASC
         """)
 

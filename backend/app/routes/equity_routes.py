@@ -1,3 +1,5 @@
+from fastapi.responses import JSONResponse
+from app.utils.sliding_window_util import SlidingWindowUtil
 from app.schemas.equity_schema import ConstituentStockResponse
 from app.schemas.equity_schema import EquitySummaryResponse
 from app.schemas.equity_schema import EquitySummary
@@ -58,7 +60,19 @@ def backtrack_sectoral_anomaly(
     sector_id: int,
     db: Session = Depends(get_db),
 ):
-    pass
+    equity = EquityRepository.get_equity_prices(db, sector_id)
+    if not equity:
+        return {"message": "Equity not found", "success": False}
+    print("===============================================\n")
+    print(equity[0])
+    print("===============================================\n")
+
+    sw = SlidingWindowUtil(data=equity)
+    data = sw.scan_sector()
+    return JSONResponse(
+        status_code=200,
+        content={"success": True, "message": "Done", "data": data}
+    )
 
 
 # ===========================================-
