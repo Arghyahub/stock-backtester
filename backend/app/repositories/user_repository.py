@@ -16,7 +16,7 @@ class UserRepository:
     ) -> User:
 
         user = User(
-            user_name=data.user_name,
+            email=data.email,
             password=hash_password(data.password),
             user_type=UserType.GENERAL
         )
@@ -51,13 +51,13 @@ class UserRepository:
     @staticmethod
     def login(
         db: Session,
-        user_name: str,
+        email: str,
         password: str
     ) -> User | None:
 
         user = (
             db.query(User)
-            .filter(User.user_name == user_name)
+            .filter(User.email == email)
             .first()
         )
 
@@ -75,13 +75,13 @@ class UserRepository:
         return user
     
     @staticmethod
-    def get_user_by_username(
+    def get_user_by_email(
         db: Session,
-        user_name: str
+        email: str
     ) -> User | None:
 
         return (
             db.query(User)
-            .filter(User.user_name == user_name)
+            .filter(User.email == email)
             .first()
         )

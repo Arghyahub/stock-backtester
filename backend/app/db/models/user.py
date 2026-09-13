@@ -17,9 +17,10 @@ class User(Base):
         index=True
     )
 
-    user_name: Mapped[str] = mapped_column(
+    email: Mapped[str] = mapped_column(
         String,
         unique=True,
+        index=True,
         nullable=False
     )
 

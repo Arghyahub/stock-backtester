@@ -13,7 +13,7 @@ const adminStore = create<AdminState>((set) => ({
       set({ is_admin: true });
     } else {
       localStorage.removeItem("token");
-      if (typeof window != "undefined") window.location.replace("/home");
+      if (typeof window != "undefined") window.location.replace("/");
     }
   },
 }));

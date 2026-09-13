@@ -1,135 +1,21 @@
-"use client"
-import { SECTORAL_INDICES } from '@/constants/market-constants'
-import React, { memo, useEffect, useMemo, useState } from "react";
-import DataTable, { DataTableColumnConfig } from "@/components/table/table";
-import { Button } from "@/components/ui/button";
+"use client";
+import { useCallback, useEffect, useState } from "react";
 import Api from "@/utils/api/api";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { SECTORAL_INDICES } from "@/constants/market-constants";
 
-type SectoralIndexType = (typeof SECTORAL_INDICES)[number] & {
-  equity_id?: number;
-  start_date?: string;
-  end_date?: string;
-  signal_count?: number;
-  actions?: undefined;
-};
-
-const AnomalyTradingSetup = () => {
-  const [sectoralIndex, setSectoralIndex] =
-    useState<SectoralIndexType[]>(SECTORAL_INDICES);
-
-  const getSectoralIndices = async () => {
-    try {
-      const resp = await Api.get("/equity/summary?type=SECTOR");
-      console.log("resp: ", resp.ok);
-      if (resp.ok) {
-        const data = resp?.equities as {
-          equity_id: number;
-          start_date: string;
-          end_date: string;
-          ticker: string;
-          signal_count: number;
-        }[];
-        const updatedData = SECTORAL_INDICES.map((strat) => {
-          const equity = data.find((eq) => eq.ticker === strat.ticker);
-          if (equity) {
-            return {
-              ...strat,
-              equity_id: equity.equity_id,
-              start_date: equity.start_date,
-              end_date: equity.end_date,
-              signal_count: equity.signal_count,
-            };
-          }
-          return strat;
-        });
-        setSectoralIndex(updatedData);
-      } else {
-        toast.error("Failed to fetch sectoral indices");
-      }
-    } catch (error) {
-      toast.error("Failed to fetch sectoral indices");
-    }
-  };
-
-  const trackSectoralIndices = async (indice?: SectoralIndexType) => {
-    try {
-      const resp = await Api.post("/equity/track-equities", {
-        equities: indice ? [indice] : SECTORAL_INDICES,
-        type: "SECTOR",
-        interval: "ONE_DAY",
-      });
-      if (resp.ok) {
-        toast.success("Sectoral indices tracked successfully");
-        getSectoralIndices();
-      } else {
-        toast.error("Failed to track sectoral indices");
-      }
-    } catch (error) {
-      toast.error("Failed to track sectoral indices");
-    }
-  };
-
-  const TableHeader: DataTableColumnConfig<SectoralIndexType>[] = useMemo(
-    () => [
-      { key: "name", title: "Name", filter_type: "text" },
-      { key: "ticker", title: "Ticker(Yahoo)", filter_type: "text" },
-      { key: "start_date", title: "Start Date", filter_type: "date" },
-      { key: "end_date", title: "End Date", filter_type: "date" },
-      { key: "signal_count", title: "Signals", filter_type: "number" },
-      {
-        key: "actions",
-        title: "Actions",
-        component: (row) => (
-          <div className="flex flex-row gap-2">
-            <Button
-              onClick={() =>
-                trackSectoralIndices({ name: row.name, ticker: row.ticker })
-              }
-              size="sm"
-              variant="secondary"
-            >
-              Track
-            </Button>
-          </div>
-        ),
-      },
-    ],
-    [],
-  );
-
-  useEffect(() => {
-    getSectoralIndices();
-  }, []);
-
-  return (
-    <div className="border px-4 py-2 rounded-md flex flex-col gap-4">
-      <h1 className="text-lg font-bold">Anomaly Trading Setup</h1>
-      <div className="flex flex-col gap-2">
-        <DataTable
-          columns={TableHeader}
-          data={sectoralIndex}
-          HeaderComponent={
-            <div className="flex flex-row gap-4">
-              <Button
-                onClick={() => trackSectoralIndices()}
-                size="sm"
-                variant="secondary"
-              >
-                Re-Track All
-              </Button>
-              <Button size="sm" variant="destructive">
-                Un-Track All
-              </Button>
-              <Button size="sm" variant="secondary">
-                Compute Signals
-              </Button>
-            </div>
-          }
-        />
-      </div>
-    </div>
-  );
-};
-
-export default memo(AnomalyTradingSetup)
+export default function AnomalyTradingSetup() {
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true); const [sectors, setSectors] = useState<{sector_equity_id:number;sector:string;qualified_windows:number;stock_mapping_count:number;etf_mapping_count:number}[]>([]); const [selected, setSelected] = useState<{name:string;ticker:string;instrument_type:string}[] | null>(null);
+  const load = useCallback(async () => { setLoading(true); try { const result = await Api.get("/anomaly/admin/sectors"); setSectors(Array.isArray(result) ? result : []); } finally { setLoading(false); } }, []);
+  useEffect(() => { load(); }, [load]);
+  const action = async (url: string, body: Record<string, unknown> = {}) => { setBusy(true); try { const result = await Api.post(url, body); if (!result.ok) throw new Error(result.detail || "Request failed"); toast.success(result.message || "Completed successfully"); await load(); } catch (error: unknown) { toast.error(error instanceof Error ? error.message : "Request failed"); } finally { setBusy(false); } };
+  const openMappings = async (id:number) => { const result = await Api.get(`/anomaly/admin/sectors/${id}/mappings`); setSelected(Array.isArray(result) ? result : []); };
+  return <div className="space-y-6">
+    <section className="rounded-lg border p-5"><h2 className="text-lg font-bold">1. Track sector history</h2><p className="mt-1 text-sm text-muted-foreground">Downloads the complete five completed calendar years of daily sector closes. This is temporary data, removed once its qualified summary is saved.</p><Button className="mt-4" disabled={busy} onClick={() => action("/equity/track-equities", {equities: SECTORAL_INDICES, type:"SECTOR", interval:"ONE_DAY"})}>Track all sectors</Button></section>
+    <section className="rounded-lg border p-5"><h2 className="text-lg font-bold">2. Find qualified sector windows</h2><p className="mt-1 text-sm text-muted-foreground">Searches every 1–60 trading-day window, saves only strict OOS-qualified sector-to-window records, then clears full sector history. Mapped instruments are analyzed live only when a public user opens a result card.</p><Button className="mt-4" disabled={busy} onClick={() => action("/anomaly/admin/compute")}>{busy ? "Working…" : "Compute sector windows"}</Button></section>
+    <section className="rounded-lg border p-5"><div className="flex items-center justify-between"><h2 className="text-lg font-bold">Qualified sectors and mappings</h2><Button size="sm" variant="secondary" disabled={loading} onClick={load}>Refresh</Button></div>{loading ? <p className="mt-4 text-sm text-muted-foreground">Loading sector summary…</p> : sectors.length === 0 ? <p className="mt-4 text-sm text-muted-foreground">No qualified sector windows have been computed yet.</p> : <div className="mt-4 space-y-2">{sectors.map(sector => <button className="flex w-full items-center justify-between rounded border p-3 text-left hover:border-brand-primary" key={sector.sector_equity_id} onClick={() => openMappings(sector.sector_equity_id)}><span className="font-medium">{sector.sector}</span><span className="text-sm text-muted-foreground">{sector.qualified_windows} windows · {sector.stock_mapping_count} stocks · {sector.etf_mapping_count} ETFs</span></button>)}</div>}</section>
+    {selected && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true"><div className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-5"><div className="flex items-center justify-between"><h2 className="text-xl font-bold">Mapped instruments</h2><Button size="sm" variant="secondary" onClick={() => setSelected(null)}>Close</Button></div><div className="mt-4 grid gap-2 sm:grid-cols-2">{selected.map(item => <div className="rounded border p-3" key={item.ticker}><p className="font-medium">{item.name}</p><p className="text-sm text-muted-foreground">{item.ticker} · {item.instrument_type}</p></div>)}</div></div></div>}
+  </div>;
+}

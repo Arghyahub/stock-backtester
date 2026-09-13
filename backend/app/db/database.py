@@ -4,6 +4,13 @@ from sqlalchemy.orm import declarative_base # creates base orm class for models
 from sqlalchemy.orm import sessionmaker # creates session
 
 DATABASE_URL = env.DATABASE_URL
+# SQLAlchemy treats plain ``postgresql://`` as the psycopg2 dialect. The
+# application deliberately depends on Psycopg 3 (``psycopg``), so accept the
+# common URL form supplied by hosted Postgres providers and select that driver.
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
+elif DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
 
 engine = create_engine(
     DATABASE_URL,
@@ -12,7 +19,7 @@ engine = create_engine(
     # For Postgres
     pool_size=100,
     max_overflow=0,
-    echo=True
+    echo=env.DEBUG
 )
 
 SessionLocal = sessionmaker(

@@ -9,6 +9,7 @@ from app.db.database import get_db
 from fastapi import Depends
 from app.schemas.strategy_schema import CreateStrategyRequest
 from fastapi import APIRouter
+from app.core.dependecies import get_current_admin
 
 strategy_router = APIRouter(
     prefix="/strategy",
@@ -27,6 +28,7 @@ def get_strategies(db: Session = Depends(get_db)):
 )
 def create_strategy(
     data: CreateStrategyRequest,
+    _: object = Depends(get_current_admin),
     db: Session = Depends(get_db),
     response: Response = Response
 ):

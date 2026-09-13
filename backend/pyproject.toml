@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "alembic>=1.16.0",
     "fastapi>=0.136.3",
     "psycopg[binary]>=3.3.4",
     "pwdlib[argon2]>=0.3.0",
@@ -15,3 +16,10 @@ dependencies = [
     "uvicorn>=0.48.0",
     "yfinance>=1.4.1",
 ]
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

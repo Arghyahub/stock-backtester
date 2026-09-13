@@ -16,14 +16,12 @@ const VerifyAdmin = (props: Props) => {
       if (!token) return;
 
       try {
-        const response = await Api.get("/user/verify")
-        if (response.status === 200) {
+        const response = await Api.get("/user/me")
+        if (response.status === 200 && response.user_type === "admin") {
           setAdmin(true,token)
-        } else {
-          setAdmin(false);
         }
       } catch (error) {
-        console.log("error: ",error);
+        localStorage.removeItem("token");
       }
     }
 

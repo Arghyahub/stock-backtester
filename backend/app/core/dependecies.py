@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.db.models.user import User
+from app.db.enums import UserType
 
 
 def get_current_user(
@@ -61,4 +62,10 @@ def get_current_user(
             detail="User not found"
         )
 
+    return user
+
+
+def get_current_admin(user: User = Depends(get_current_user)) -> User:
+    if user.user_type != UserType.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     return user

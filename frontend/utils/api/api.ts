@@ -13,14 +13,18 @@ class Api {
     };
   }
 
-  private static async formatResponse(
-    response: Response,
-  ): Promise<Record<string, any>> {
-    let res = {};
+  private static async formatResponse(response: Response): Promise<any> {
+    let res: any = {};
     try {
       res = await response.json();
     } catch (e) {
       res = {};
+    }
+    // Spreading an array into an object turns it into {0: ..., 1: ...}, which
+    // made valid list endpoints appear empty to React views.
+    if (Array.isArray(res)) {
+      Object.assign(res, { status: response.status, ok: response.ok });
+      return res;
     }
     return { status: response.status, ok: response.ok, ...res };
   }

@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.schemas.index_schema import ReponseModel
 from app.schemas.equity_schema import TrackEquityRequest
 from fastapi import APIRouter
+from app.core.dependecies import get_current_admin
 
 equity_router = APIRouter(
     prefix="/equity",
@@ -23,6 +24,7 @@ equity_router = APIRouter(
 )
 def track_equity(
     data: TrackEquityRequest,
+    _: object = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     EquityRepository.create_and_track_equities(db, data)
@@ -76,4 +78,3 @@ def backtrack_sectoral_anomaly(
 
 
 # ===========================================-
-

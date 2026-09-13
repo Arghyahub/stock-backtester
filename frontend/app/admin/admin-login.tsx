@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 type Props = {}
 
 const AdminLogin = (props: Props) => {
-  const [userName, setUserName] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const setAdmin = adminStore(s => s.setAdmin);
   const is_admin = adminStore(s => s.is_admin);
@@ -24,6 +24,11 @@ const AdminLogin = (props: Props) => {
         setIsDialogOpen(true)
         setLoadingAuth(false)
         return
+      }
+      const result = await Api.get('/user/verify')
+      if (!result.ok) {
+        setIsDialogOpen(true)
+        setLoadingAuth(false)
       }
     }
 
@@ -39,7 +44,7 @@ const AdminLogin = (props: Props) => {
   const handleLogin = async () => {
     try {
       const res = await Api.post(`/user/login`, {
-        user_name: userName,
+        email,
         password: password
       })
 
@@ -71,9 +76,9 @@ const AdminLogin = (props: Props) => {
           </DialogHeader>
           <div className="flex flex-col gap-4 py-4">
             <Input 
-              placeholder="Username" 
-              value={userName}
-              onChange={(e) => setUserName(e.target.value)}
+              placeholder="Email" 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
             <Input 
               type="password"

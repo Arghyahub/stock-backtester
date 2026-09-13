@@ -1,0 +1,10 @@
+[project]
+name = "anomaly-trading-2"
+version = "0.1.0"
+description = "Walk-forward seasonal anomaly research for NSE sector indices"
+requires-python = ">=3.11"
+dependencies = [
+  "numpy>=2.0",
+  "pandas>=2.2",
+  "yfinance>=0.2.54",
+]

@@ -152,7 +152,7 @@ export default function AdminPage() {
       </div>
 
       <div className="flex flex-col w-full h-full">
-        {OpenStrategyId === 1 && <AnomalyTradingSetup />}
+        {OpenStrategyId !== null && <AnomalyTradingSetup />}
       </div>
     </div>
   );

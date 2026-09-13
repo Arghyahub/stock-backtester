@@ -1,16 +1,65 @@
-# Python-generated files
+# Operating-system and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Secrets and local configuration (commit only sanitized .env.example files)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
 __pycache__/
-*.py[oc]
+*.py[cod]
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
 build/
 dist/
 wheels/
-*.egg-info
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
 
-# Virtual environments
-.venv
-.env
-.env.*
+# JavaScript / Next.js
+node_modules/
+.pnp/
+.pnp.*
+.yarn/cache/
+.yarn/install-state.gz
+.next/
+out/
+.turbo/
+.vercel/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
 
+# Local databases, logs, and generated research outputs
+*.sqlite
+*.sqlite3
+*.db
+*.log
 *.csv
 *.xlsx
-*.log
+output/
+reports/
+
+# Tooling caches
+.cache/
+.ipynb_checkpoints/

@@ -1,6 +1,8 @@
 from app.routes.equity_routes import equity_router
 from app.routes.strategy_routes import strategy_router
 from app.routes.user_routes import user_router
+from app.routes.anomaly_routes import router as anomaly_router
+from app.routes.midcap_shop_routes import router as midcap_shop_router
 from app.db.database import engine
 from app.db.database import Base
 from fastapi import FastAPI, Request
@@ -48,3 +50,5 @@ def root():
 app.include_router(user_router)
 app.include_router(strategy_router)
 app.include_router(equity_router)
+app.include_router(anomaly_router)
+app.include_router(midcap_shop_router)

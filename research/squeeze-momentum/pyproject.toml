@@ -1,0 +1,11 @@
+[project]
+name = "squeeze-momentum-research"
+version = "0.1.0"
+description = "Daily NSE long-only LazyBear Squeeze Momentum research"
+requires-python = ">=3.11"
+dependencies = [
+  "numpy>=2.0",
+  "pandas>=2.2",
+  "tabulate>=0.9",
+  "yfinance>=0.2.54",
+]

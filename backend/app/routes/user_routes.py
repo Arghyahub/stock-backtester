@@ -1,6 +1,7 @@
 from fastapi import Response
 from app.schemas.user_schema import VerifyTokenResponse
-from app.core.dependecies import get_current_user
+from app.schemas.user_schema import CurrentUserResponse
+from app.core.dependecies import get_current_admin, get_current_user
 from app.db.models import User
 from email.header import Header
 from app.core.security import create_access_token
@@ -37,16 +38,16 @@ def create_user(
     db: Session = Depends(get_db)
 ):
 
-    existing_user = UserRepository.get_user_by_username(
+    existing_user = UserRepository.get_user_by_email(
         db=db,
-        user_name=data.user_name
+        email=data.email
     )
 
     if existing_user:
 
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Username already exists"
+            detail="Email already exists"
         )
 
     user = UserRepository.create_user(
@@ -68,7 +69,7 @@ def login(
 
     user = UserRepository.login(
         db=db,
-        user_name=data.user_name,
+        email=data.email,
         password=data.password
     )
 
@@ -95,8 +96,13 @@ def login(
     response_model=VerifyTokenResponse
 )
 def verify_token(
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_admin),
     response: Response = Response
 ):
     response.status_code = status.HTTP_200_OK
     return {"success": True}
+
+
+@user_router.get("/me", response_model=CurrentUserResponse)
+def current_user(user: User = Depends(get_current_user)):
+    return user
